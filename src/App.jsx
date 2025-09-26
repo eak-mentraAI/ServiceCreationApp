@@ -327,9 +327,9 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto p-4 grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {/* Column 1: Define + Publish Service */}
-        <section className="xl:col-span-1 space-y-4">
+      <main className="max-w-4xl mx-auto p-4 space-y-6">
+        {/* Service Definition Section */}
+        <section className="space-y-4">
           <Card title="Admin: Define Service (Racker-only)">
             <div className="space-y-6">
               {/* Product Catalogue Details */}
@@ -547,8 +547,8 @@ export default function App() {
           </Card>
         </section>
 
-        {/* Column 2: Example Tickets */}
-        <section className="xl:col-span-1 space-y-4">
+        {/* Catalogue Section */}
+        <section className="space-y-4">
           <Card title="Ticket Template Preview">
             <div className="text-xs text-gray-500 mb-3 p-2 bg-blue-50 rounded">
               This preview shows how your ticket template will look when ANY customer requests this service.
@@ -584,8 +584,8 @@ export default function App() {
           </Card>
         </section>
 
-        {/* Column 3: Dynamic Variables Guide */}
-        <section className="xl:col-span-1 space-y-4">
+        {/* Additional Sections */}
+        <section className="space-y-4">
           <div className="bg-white rounded-2xl shadow-sm border">
             <button
               onClick={() => setShowVariablesGuide(!showVariablesGuide)}
