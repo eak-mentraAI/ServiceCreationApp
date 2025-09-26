@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import rackspaceLogo from "./rackspace-logo.png";
+import rxtIcon from "./rxt_icon.png";
 
 // Lightweight mock app to demonstrate service definition flow:
 // 1) Racker defines a service (name, category, billing, ticket queue, tag, ticket details)
@@ -15,6 +17,16 @@ export default function App() {
   const [showVariablesGuide, setShowVariablesGuide] = useState(false);
   const [showApprovedAddOns, setShowApprovedAddOns] = useState(false);
   const [activeDropdown, setActiveDropdown] = useState(null);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showApprovedAddOnsTooltip, setShowApprovedAddOnsTooltip] = useState(false);
+
+  // Mock logged in user
+  const currentUser = {
+    name: "Edward Kerr",
+    email: "edward.kerr@rackspace.com",
+    role: "Service Architect",
+    avatar: rxtIcon
+  };
 
   // --- Form state: Define Service ---
   const [svcName, setSvcName] = useState("");
@@ -132,16 +144,39 @@ export default function App() {
   ];
 
   // Export functions
-  function exportToCSV(addon) {
+  // Export customer list as CSV
+  function exportCustomerListCSV(addon) {
+    // Group enrollments by customer
+    const customerMap = new Map();
+    addon.enrollments.forEach(e => {
+      if (!customerMap.has(e.customerId)) {
+        customerMap.set(e.customerId, {
+          customerId: e.customerId,
+          customerName: e.customerName,
+          devices: []
+        });
+      }
+      customerMap.get(e.customerId).devices.push({
+        deviceId: e.deviceId,
+        deviceName: e.deviceName
+      });
+    });
+
     const headers = ["Customer ID", "Customer Name", "Device ID", "Device Name", "Service", "Tag"];
-    const rows = addon.enrollments.map(e => [
-      e.customerId,
-      e.customerName,
-      e.deviceId,
-      e.deviceName,
-      addon.name,
-      addon.tag
-    ]);
+    const rows = [];
+
+    customerMap.forEach(customer => {
+      customer.devices.forEach(device => {
+        rows.push([
+          customer.customerId,
+          customer.customerName,
+          device.deviceId,
+          device.deviceName,
+          addon.name,
+          addon.tag
+        ]);
+      });
+    });
 
     const csvContent = [
       headers.join(","),
@@ -152,21 +187,73 @@ export default function App() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${addon.name.replace(/\s+/g, '-')}-enrollments.csv`;
+    a.download = `${addon.name.replace(/\s+/g, '-')}-customer-list.csv`;
     a.click();
     window.URL.revokeObjectURL(url);
     setActiveDropdown(null);
   }
 
-  function exportToJSON(addon) {
-    const data = {
-      service: {
-        id: addon.id,
-        name: addon.name,
-        category: addon.category,
+  // Export service contract as CSV
+  function exportServiceContractCSV(addon) {
+    const data = [
+      ["Field", "Value"],
+      ["Service Name", addon.name],
+      ["Category", addon.category],
+      ["Tag", addon.tag],
+      ["Description", addon.description || ""],
+      ["Billing Unit", addon.billing?.unit?.replace(' ', '_') || "per_device"],
+      ["Unit Cost", addon.billing?.unitCost || 0],
+      ["Billing Code", addon.billing?.code || ""],
+      ["Max Enrollments", addon.limits?.maxEnrollments || "Unlimited"],
+      ["Min Devices Per Customer", addon.limits?.minDevices || "No minimum"],
+      ["Device Types", (addon.eligibility?.deviceTypes || ["All"]).join("; ")],
+      ["Operating Systems", (addon.eligibility?.operatingSystems || []).join("; ") || "Any"],
+      ["Ticket Queue", addon.workflow?.ticketQueue || "Implementation"],
+      ["Approval Status", addon.status === "Active" ? "Approved" : "Pending"],
+      ["Requested By", addon.requestedBy || ""],
+      ["Approved Date", addon.approvedDate || ""],
+      ["Expiry Date", addon.expiryDate || ""],
+      ["Total Enrollments", addon.enrollments.length],
+      ["Contract Version", "1.0"]
+    ];
+
+    const csvContent = data.map(row => row.map(cell => `"${cell}"`).join(",")).join("\n");
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${addon.name.replace(/\s+/g, '-')}-service-contract.csv`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    setActiveDropdown(null);
+  }
+
+  // Export customer list and devices with tags
+  function exportCustomerList(addon) {
+    // Get unique customers
+    const customerMap = new Map();
+    addon.enrollments.forEach(e => {
+      if (!customerMap.has(e.customerId)) {
+        customerMap.set(e.customerId, {
+          customerId: e.customerId,
+          customerName: e.customerName,
+          devices: []
+        });
+      }
+      customerMap.get(e.customerId).devices.push({
+        deviceId: e.deviceId,
+        deviceName: e.deviceName,
         tag: addon.tag
-      },
-      enrollments: addon.enrollments
+      });
+    });
+
+    const data = {
+      service: addon.name,
+      tag: addon.tag,
+      totalEnrollments: addon.enrollments.length,
+      customers: Array.from(customerMap.values()),
+      exportedAt: new Date().toISOString()
     };
 
     const jsonContent = JSON.stringify(data, null, 2);
@@ -174,7 +261,125 @@ export default function App() {
     const url = window.URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${addon.name.replace(/\s+/g, '-')}-enrollments.json`;
+    a.download = `${addon.name.replace(/\s+/g, '-')}-customer-list.json`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    setActiveDropdown(null);
+  }
+
+  // Export service definition as per contract spec
+  function exportServiceContract(addon) {
+    const data = {
+      name: addon.name,
+      category: addon.category,
+      tag: addon.tag,
+      description: addon.description || "",
+      billing: {
+        unit: addon.billing?.unit?.replace(' ', '_') || "per_device",
+        unit_cost: addon.billing?.unitCost || 0,
+        code: addon.billing?.code || ""
+      },
+      limits: {
+        max_enrollments: addon.limits?.maxEnrollments || null,
+        min_devices_per_customer: addon.limits?.minDevices || null
+      },
+      eligibility: {
+        device_types: addon.eligibility?.deviceTypes?.map(type => {
+          if (type === "All") return "*";
+          if (type === "VMs") return "vm";
+          if (type === "Hosts") return "host";
+          if (type === "Networking") return "network";
+          if (type === "Storage") return "storage";
+          if (type === "Containers") return "container";
+          return type.toLowerCase();
+        }) || ["*"]
+      },
+      ticketing: {
+        queue: addon.workflow?.ticketQueue || "Implementation",
+        template: addon.workflow?.ticketDetails || "",
+        template_tokens_supported: ["customerId", "customerName", "deviceId", "deviceName"]
+      },
+      approvals: {
+        status: addon.status === "Active" ? "approved" : "pending",
+        requested_by: addon.requestedBy || currentUser.email,
+        requested_at: addon.approvedDate ? new Date(addon.approvedDate).toISOString() : new Date().toISOString()
+      },
+      contract_version: "1.0"
+    };
+
+    const jsonContent = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${addon.name.replace(/\s+/g, '-')}-service-contract.json`;
+    a.click();
+    window.URL.revokeObjectURL(url);
+    setActiveDropdown(null);
+  }
+
+  // Legacy export for backward compatibility
+  function exportToJSON(addon) {
+    // Match ServiceDefinition v1.1 data contract
+    const data = {
+      version: "1.1",
+      serviceDefinition: {
+        id: addon.id,
+        metadata: {
+          name: addon.name,
+          category: addon.category,
+          description: addon.description || "",
+          tags: [addon.tag],
+          createdBy: addon.requestedBy || currentUser.email,
+          createdAt: addon.approvedDate ? new Date(addon.approvedDate).toISOString() : new Date().toISOString(),
+          lastModified: new Date().toISOString()
+        },
+        billing: {
+          unitOfMeasure: addon.billing?.unit || "per device",
+          costPerUnit: addon.billing?.unitCost || 0,
+          billingCode: addon.billing?.code || "",
+          currency: "USD"
+        },
+        workflow: {
+          ticketQueue: addon.workflow?.ticketQueue || "Implementation",
+          ticketTemplate: addon.workflow?.ticketDetails || "",
+          automationTag: addon.tag,
+          approvalRequired: true,
+          approverGroup: addon.approverGroup || approverGroup.ldapGroup
+        },
+        eligibility: {
+          deviceTypes: addon.eligibility?.deviceTypes || ["All"],
+          operatingSystems: addon.eligibility?.operatingSystems || [],
+          minimumDevices: addon.limits?.minDevices || 0,
+          maximumEnrollments: addon.limits?.maxEnrollments || null
+        },
+        status: {
+          state: addon.status === "Active" ? "approved" : "pending",
+          approvedBy: addon.status === "Active" ? approverGroup.members[0].email : null,
+          approvedAt: addon.status === "Active" ? addon.approvedDate : null,
+          expiryDate: addon.expiryDate || null
+        },
+        enrollments: {
+          count: addon.enrollments.length,
+          devices: addon.enrollments.map(e => ({
+            customerId: e.customerId,
+            customerName: e.customerName,
+            deviceId: e.deviceId,
+            deviceName: e.deviceName,
+            enrolledAt: new Date().toISOString(),
+            billingActive: true,
+            tagApplied: true
+          }))
+        }
+      }
+    };
+
+    const jsonContent = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonContent], { type: 'application/json' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${addon.name.replace(/\s+/g, '-')}-service-definition-v1.1.json`;
     a.click();
     window.URL.revokeObjectURL(url);
     setActiveDropdown(null);
@@ -255,18 +460,32 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <header className="sticky top-0 z-10 bg-white border-b">
-          <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-            <h1 className="text-xl font-semibold">Service Approval Group</h1>
-            <button
-              onClick={() => setShowApprovers(false)}
-              className="text-sm px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
-            >
-              ← Back to Catalog
-            </button>
+          <div className="px-6 py-3">
+            <div className="flex items-center justify-between">
+              {/* Logo on left */}
+              <div className="flex-1">
+                <img src={rackspaceLogo} alt="Rackspace Technology" className="h-10" />
+              </div>
+
+              {/* Centered title */}
+              <div className="flex-1 text-center">
+                <h1 className="text-xl font-semibold">Service Approval Group</h1>
+              </div>
+
+              {/* Back button on right */}
+              <div className="flex-1 flex justify-end">
+                <button
+                  onClick={() => setShowApprovers(false)}
+                  className="text-sm px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
+                >
+                  ← Back to Catalog
+                </button>
+              </div>
+            </div>
           </div>
         </header>
 
-        <main className="max-w-4xl mx-auto p-6">
+        <main className="px-6 py-6 max-w-6xl mx-auto">
           {selectedServiceForApproval && (
             <div className="mb-6 p-4 bg-blue-50 rounded-xl border border-blue-200">
               <div className="text-sm text-blue-700 mb-1">Awaiting approval for:</div>
@@ -320,16 +539,62 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
+      {/* Header with Rackspace logo, centered title, and user menu */}
       <header className="sticky top-0 z-10 bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <h1 className="text-xl font-semibold">Service Catalogue Definition – Mock</h1>
-          <div className="text-sm opacity-70">Demo only – client-side state</div>
+        <div className="px-6 py-3">
+          <div className="flex items-center justify-between">
+            {/* Logo on left */}
+            <div className="flex-1">
+              <img src={rackspaceLogo} alt="Rackspace Technology" className="h-10" />
+            </div>
+
+            {/* Centered title */}
+            <div className="flex-1 text-center">
+              <h1 className="text-xl font-semibold">Service Catalogue Definition - Mock</h1>
+              <p className="text-sm text-gray-600">Define and deploy managed services</p>
+            </div>
+
+            {/* User Menu on right */}
+            <div className="flex-1 flex justify-end">
+              <div className="relative">
+                <button
+                  onClick={() => setShowUserMenu(!showUserMenu)}
+                  className="flex items-center space-x-3 hover:bg-gray-50 rounded-lg p-2 transition-colors"
+                >
+                  <img src={currentUser.avatar} alt={currentUser.name} className="w-10 h-10 rounded-full" />
+                  <div className="text-left">
+                    <div className="text-sm font-medium text-gray-900">{currentUser.name}</div>
+                    <div className="text-xs text-gray-500">{currentUser.role}</div>
+                  </div>
+                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {showUserMenu && (
+                  <div className="absolute right-0 mt-2 w-56 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                    <div className="p-4 border-b">
+                      <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
+                      <p className="text-xs text-gray-500">{currentUser.email}</p>
+                    </div>
+                    <div className="py-1">
+                      <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile Settings</button>
+                      <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Service History</button>
+                      <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Documentation</button>
+                      <hr className="my-1" />
+                      <button className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">Sign Out</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto p-4 space-y-6">
+      <main className="px-6 py-6">
         {/* Service Definition Section */}
-        <section className="space-y-4">
+        <div className="max-w-6xl mx-auto space-y-4">
           <Card title="Admin: Define Service (Racker-only)">
             <div className="space-y-6">
               {/* Product Catalogue Details */}
@@ -545,10 +810,10 @@ export default function App() {
               </div>
             )}
           </Card>
-        </section>
+        </div>
 
         {/* Catalogue Section */}
-        <section className="space-y-4">
+        <div className="max-w-6xl mx-auto space-y-4">
           <Card title="Ticket Template Preview">
             <div className="text-xs text-gray-500 mb-3 p-2 bg-blue-50 rounded">
               This preview shows how your ticket template will look when ANY customer requests this service.
@@ -582,10 +847,10 @@ export default function App() {
               </div>
             )}
           </Card>
-        </section>
+        </div>
 
         {/* Additional Sections */}
-        <section className="space-y-4">
+        <div className="max-w-6xl mx-auto space-y-4">
           <div className="bg-white rounded-2xl shadow-sm border">
             <button
               onClick={() => setShowVariablesGuide(!showVariablesGuide)}
@@ -652,7 +917,21 @@ export default function App() {
               onClick={() => setShowApprovedAddOns(!showApprovedAddOns)}
               className="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 rounded-2xl transition-colors"
             >
-              <h2 className="text-base font-semibold">Approved Add-Ons</h2>
+              <div className="flex items-center gap-2 relative">
+                <h2 className="text-base font-semibold">Approved Add-Ons</h2>
+                <div className="relative">
+                  <InfoIcon onClick={(e) => {
+                    e.stopPropagation();
+                    setShowApprovedAddOnsTooltip(!showApprovedAddOnsTooltip);
+                  }} />
+                  {showApprovedAddOnsTooltip && (
+                    <Tooltip
+                      content="When an item expires, the approver LDAP group and the requestor are notified. If it is not renewed in 30 days, notifications should continue to be sent until action is taken to either renew it or remove it."
+                      onClose={() => setShowApprovedAddOnsTooltip(false)}
+                    />
+                  )}
+                </div>
+              </div>
               <svg
                 className={`w-5 h-5 text-gray-500 transform transition-transform ${showApprovedAddOns ? 'rotate-180' : ''}`}
                 fill="none"
@@ -703,27 +982,55 @@ export default function App() {
                                 <div className="fixed inset-0 z-10" onClick={() => setActiveDropdown(null)} />
                                 <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border z-20">
                                   <div className="px-4 py-2 border-b bg-gray-50 rounded-t-lg">
-                                    <div className="text-xs font-semibold text-gray-700">Export Enrolled Devices</div>
-                                    <div className="text-xs text-gray-500 mt-0.5">Customer devices with this service</div>
+                                    <div className="text-xs font-semibold text-gray-700">Export Service Data</div>
+                                    <div className="text-xs text-gray-500 mt-0.5">Choose export format and content</div>
                                   </div>
-                                  <button
-                                    onClick={() => exportToCSV(addon)}
-                                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    Export as CSV
-                                  </button>
-                                  <button
-                                    onClick={() => exportToJSON(addon)}
-                                    className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 rounded-b-lg"
-                                  >
-                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                    </svg>
-                                    Export as JSON
-                                  </button>
+
+                                  {/* CSV Exports */}
+                                  <div className="border-b">
+                                    <div className="px-4 py-2 text-xs font-semibold text-gray-600 bg-gray-50">Export as CSV</div>
+                                    <button
+                                      onClick={() => exportCustomerListCSV(addon)}
+                                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                      </svg>
+                                      Customer List
+                                    </button>
+                                    <button
+                                      onClick={() => exportServiceContractCSV(addon)}
+                                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                      Service Contract
+                                    </button>
+                                  </div>
+
+                                  {/* JSON Exports */}
+                                  <div>
+                                    <div className="px-4 py-2 text-xs font-semibold text-gray-600 bg-gray-50">Export as JSON</div>
+                                    <button
+                                      onClick={() => exportCustomerList(addon)}
+                                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                      </svg>
+                                      Customer List
+                                    </button>
+                                    <button
+                                      onClick={() => exportServiceContract(addon)}
+                                      className="w-full text-left px-4 py-2 text-sm hover:bg-gray-100 flex items-center gap-2 rounded-b-lg"
+                                    >
+                                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                      </svg>
+                                      Service Contract
+                                    </button>
+                                  </div>
                                 </div>
                               </>
                             )}
@@ -751,7 +1058,7 @@ export default function App() {
               </div>
             )}
           </div>
-        </section>
+        </div>
       </main>
 
       <footer className="max-w-7xl mx-auto px-4 py-6 text-xs text-gray-500">
@@ -777,7 +1084,10 @@ function Card({ title, children }) {
 function InfoIcon({ onClick }) {
   return (
     <button
-      onClick={onClick}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick();
+      }}
       className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs font-bold ml-1 transition-colors"
       type="button"
     >
@@ -788,10 +1098,28 @@ function InfoIcon({ onClick }) {
 
 // Tooltip popup component
 function Tooltip({ content, onClose }) {
+  React.useEffect(() => {
+    const handleClickOutside = (e) => {
+      // Close tooltip on any click outside
+      if (!e.target.closest('.tooltip-content')) {
+        onClose();
+      }
+    };
+
+    // Add small delay to prevent immediate closing from the button click that opened it
+    const timer = setTimeout(() => {
+      document.addEventListener('click', handleClickOutside);
+    }, 10);
+
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, [onClose]);
+
   return (
     <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute z-50 mt-1 p-3 bg-gray-900 text-white text-sm rounded-lg shadow-lg max-w-xs">
+      <div className="tooltip-content absolute z-50 mt-1 p-3 bg-gray-900 text-white text-sm rounded-lg shadow-lg max-w-xs">
         <div className="relative">
           {content}
           <div className="absolute -top-5 left-4 w-0 h-0 border-l-[6px] border-l-transparent border-r-[6px] border-r-transparent border-b-[6px] border-b-gray-900" />
