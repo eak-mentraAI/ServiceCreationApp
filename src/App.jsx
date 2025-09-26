@@ -19,6 +19,8 @@ export default function App() {
   const [activeDropdown, setActiveDropdown] = useState(null);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showApprovedAddOnsTooltip, setShowApprovedAddOnsTooltip] = useState(false);
+  const [showApprovalModal, setShowApprovalModal] = useState(false);
+  const [lastSubmittedService, setLastSubmittedService] = useState(null);
 
   // Mock logged in user
   const currentUser = {
@@ -385,6 +387,11 @@ export default function App() {
     setActiveDropdown(null);
   }
 
+  // Form validation
+  function formIsValid() {
+    return svcName.trim() !== '';
+  }
+
   // Send for approval handler
   function handleSendForApproval() {
     if (!svcName.trim()) return alert("Service name is required");
@@ -411,6 +418,8 @@ export default function App() {
     };
 
     setServices((prev) => [newService, ...prev]);
+    setLastSubmittedService(newService);
+    setShowApprovalModal(true);
 
     // Reset some fields for clarity (keep defaults for faster iteration)
     setSvcName("");
@@ -594,12 +603,12 @@ export default function App() {
 
       <main className="px-6 py-6">
         {/* Service Definition Section */}
-        <div className="max-w-6xl mx-auto space-y-4">
-          <Card title="Admin: Define Service (Racker-only)">
+        <div className="max-w-6xl mx-auto space-y-6">
+          <Card title="Service Definition Racker UI">
             <div className="space-y-6">
               {/* Product Catalogue Details */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3 pb-2 border-b">Product Catalogue Details</h3>
+                <h3 className="text-base font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Product Catalogue Details</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <TextField
                     label="Service Name"
@@ -610,6 +619,7 @@ export default function App() {
                     activeTooltip={activeTooltip}
                     setActiveTooltip={setActiveTooltip}
                     tooltipId="service-name"
+                    required={true}
                   />
                   <SelectField
                     label="Category"
@@ -620,6 +630,7 @@ export default function App() {
                     activeTooltip={activeTooltip}
                     setActiveTooltip={setActiveTooltip}
                     tooltipId="category"
+                    required={true}
                   />
                   <TextField
                     label="Tag to Apply"
@@ -631,6 +642,7 @@ export default function App() {
                     setActiveTooltip={setActiveTooltip}
                     tooltipId="tag-to-apply"
                     className="col-span-2"
+                    required={true}
                   />
                   <TextArea
                     label="Description"
@@ -648,7 +660,7 @@ export default function App() {
 
               {/* Billing Configuration */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3 pb-2 border-b">Billing Configuration</h3>
+                <h3 className="text-base font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Billing Configuration</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <SelectField
                     label="Unit of Measure"
@@ -677,7 +689,7 @@ export default function App() {
 
               {/* Service Limits & Eligibility */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3 pb-2 border-b">Service Limits & Eligibility</h3>
+                <h3 className="text-base font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Service Limits & Eligibility</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <TextField
                     label="Max Enrollments"
@@ -732,7 +744,7 @@ export default function App() {
 
               {/* Ticket Workflow */}
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-3 pb-2 border-b">Ticket Workflow</h3>
+                <h3 className="text-base font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Ticket Workflow</h3>
                 <div className="grid grid-cols-2 gap-3">
                   <SelectField
                     label="Ticket Queue"
@@ -760,7 +772,7 @@ export default function App() {
               </div>
             </div>
             <div className="mt-4 flex gap-2 justify-end">
-              <button onClick={handleSendForApproval} className="px-3 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition">
+              <button onClick={handleSendForApproval} className="px-5 py-2.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-all duration-200 shadow-sm hover:shadow-md disabled:opacity-50 disabled:cursor-not-allowed" disabled={!formIsValid()}>
                 Send for Approval
               </button>
             </div>
@@ -771,19 +783,19 @@ export default function App() {
               <EmptyState message="No services yet. Define and submit one above." />
             ) : (
               <div className="space-y-2">
-                {services.map((s) => (
-                  <div key={s.id} className="border rounded-xl p-3 bg-white">
+                {services.map((s, idx) => (
+                  <div key={s.id} className={`border rounded-lg p-4 hover:shadow-sm transition-all duration-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">{s.name}</div>
-                        <div className="text-sm text-gray-500">{s.category} • {s.workflow.tag} • {s.billing.code}</div>
+                        <div className="font-medium text-gray-900">{s.name}</div>
+                        <div className="text-sm text-gray-600 mt-0.5">{s.category} • {s.workflow.tag} • {s.billing.code}</div>
                       </div>
                       {s.status === "Pending Approval" ? (
-                        <span className="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full">
+                        <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium border border-amber-200">
                           {s.status}
                         </span>
                       ) : (
-                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2 py-1 rounded-full">
+                        <span className="text-xs bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-medium border border-emerald-200">
                           {s.status}
                         </span>
                       )}
@@ -795,7 +807,7 @@ export default function App() {
                           setSelectedServiceForApproval(s);
                           setShowApprovers(true);
                         }}
-                        className="text-xs text-blue-600 hover:text-blue-700 underline mt-2"
+                        className="text-xs text-blue-600 hover:text-blue-700 underline mt-2 transition-colors duration-200"
                       >
                         View approvers →
                       </button>
@@ -813,7 +825,7 @@ export default function App() {
         </div>
 
         {/* Catalogue Section */}
-        <div className="max-w-6xl mx-auto space-y-4">
+        <div className="max-w-6xl mx-auto space-y-6">
           <Card title="Ticket Template Preview">
             <div className="text-xs text-gray-500 mb-3 p-2 bg-blue-50 rounded">
               This preview shows how your ticket template will look when ANY customer requests this service.
@@ -823,13 +835,13 @@ export default function App() {
               <EmptyState message="No services defined yet. Define a service to see ticket preview." />
             ) : (
               <div className="space-y-2">
-                {services.slice(0, 3).map((s) => {
+                {services.slice(0, 3).map((s, idx) => {
                   const exampleTicket = generateExampleTicket(s);
                   return exampleTicket ? (
-                    <div key={s.id} className="border rounded-xl p-3 bg-white">
+                    <div key={s.id} className={`border rounded-lg p-4 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'} hover:shadow-sm transition-all duration-200`}>
                       <div className="flex items-center justify-between">
-                        <div className="font-medium">{exampleTicket.title}</div>
-                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">{exampleTicket.queue}</span>
+                        <div className="font-medium text-gray-900">{exampleTicket.title}</div>
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2.5 py-1 rounded-full font-medium border border-blue-200">{exampleTicket.queue}</span>
                       </div>
                       <div className="text-sm text-gray-600 mt-1">Template Preview • Service: {s.name}</div>
                       {exampleTicket.details && (
@@ -850,11 +862,11 @@ export default function App() {
         </div>
 
         {/* Additional Sections */}
-        <div className="max-w-6xl mx-auto space-y-4">
+        <div className="max-w-6xl mx-auto space-y-6">
           <div className="bg-white rounded-2xl shadow-sm border">
             <button
               onClick={() => setShowVariablesGuide(!showVariablesGuide)}
-              className="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 rounded-2xl transition-colors"
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 rounded-2xl transition-all duration-200 cursor-pointer"
             >
               <h2 className="text-base font-semibold">Dynamic Variables Guide</h2>
               <svg
@@ -915,7 +927,7 @@ export default function App() {
           <div className="bg-white rounded-2xl shadow-sm border">
             <button
               onClick={() => setShowApprovedAddOns(!showApprovedAddOns)}
-              className="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 rounded-2xl transition-colors"
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 rounded-2xl transition-all duration-200 cursor-pointer"
             >
               <div className="flex items-center gap-2 relative">
                 <h2 className="text-base font-semibold">Approved Add-Ons</h2>
@@ -945,7 +957,7 @@ export default function App() {
               <div className="px-4 pb-4 border-t">
                 <div className="mt-4 space-y-3">
                   {approvedAddOns.map((addon) => (
-                    <div key={addon.id} className="border rounded-lg p-3 bg-gray-50 relative">
+                    <div key={addon.id} className="border rounded-lg p-4 hover:bg-gray-50 hover:shadow-sm transition-all duration-200 relative">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <div className="flex items-center gap-2">
@@ -959,17 +971,17 @@ export default function App() {
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
-                          <span className={`text-xs px-2 py-1 rounded-full ${
+                          <span className={`text-xs px-2.5 py-1 rounded-full font-medium ${
                             addon.status === 'Expiring Soon'
-                              ? 'bg-amber-100 text-amber-700'
-                              : 'bg-green-100 text-green-700'
+                              ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                              : 'bg-green-100 text-green-700 border border-green-200'
                           }`}>
                             {addon.status}
                           </span>
                           <div className="relative">
                             <button
                               onClick={() => setActiveDropdown(activeDropdown === addon.id ? null : addon.id)}
-                              className="p-1 hover:bg-gray-200 rounded transition-colors"
+                              className="p-1.5 hover:bg-gray-200 rounded-lg transition-all duration-200 hover:scale-110"
                               title="Export options"
                             >
                               <svg className="w-4 h-4 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -1064,6 +1076,72 @@ export default function App() {
       <footer className="max-w-7xl mx-auto px-4 py-6 text-xs text-gray-500">
         This mock demonstrates service definition with customizable ticket templates using dynamic variables that will be populated when customers request services.
       </footer>
+
+      {/* Approval Confirmation Modal */}
+      {showApprovalModal && lastSubmittedService && (
+        <>
+          <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setShowApprovalModal(false)} />
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
+                    <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="text-lg font-semibold text-gray-900">Service Submitted Successfully</h3>
+                </div>
+                <button
+                  onClick={() => setShowApprovalModal(false)}
+                  className="text-gray-400 hover:text-gray-600 transition"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <div className="text-sm font-medium text-gray-900">{lastSubmittedService.name}</div>
+                  <div className="text-xs text-gray-500 mt-1">
+                    Category: {lastSubmittedService.category} • Tag: {lastSubmittedService.workflow.tag}
+                  </div>
+                </div>
+
+                <div className="text-sm text-gray-600">
+                  Your service definition has been sent for approval to the <span className="font-medium">Service Catalog Approvers</span> group.
+                </div>
+
+                <div className="flex items-start space-x-2 bg-blue-50 rounded-lg p-3">
+                  <svg className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <div className="text-sm text-blue-800">
+                    <div className="font-medium mb-1">What happens next?</div>
+                    <ul className="space-y-1 text-xs">
+                      <li>• Check the <span className="font-medium">"Catalogue (Submitted Services)"</span> section below for status updates</li>
+                      <li>• Approvers will review your service definition</li>
+                      <li>• Once approved, it will appear in the Approved Add-Ons section</li>
+                      <li>• You'll be notified via email when the status changes</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowApprovalModal(false)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium text-sm"
+                >
+                  Got it
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -1071,9 +1149,9 @@ export default function App() {
 // --- UI primitives ---
 function Card({ title, children }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border p-4">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="text-base font-semibold">{title}</h2>
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
       </div>
       {children}
     </div>
@@ -1088,7 +1166,7 @@ function InfoIcon({ onClick }) {
         e.stopPropagation();
         onClick();
       }}
-      className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-red-500 hover:bg-red-600 text-white text-xs font-bold ml-1 transition-colors"
+      className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-gray-700 hover:bg-gray-800 text-white text-xs font-bold ml-1 transition-colors"
       type="button"
     >
       i
@@ -1129,13 +1207,14 @@ function Tooltip({ content, onClose }) {
   );
 }
 
-function TextField({ label, value, onChange, placeholder, type = "text", step, className = "", tooltip, activeTooltip, setActiveTooltip, tooltipId }) {
+function TextField({ label, value, onChange, placeholder, type = "text", step, className = "", tooltip, activeTooltip, setActiveTooltip, tooltipId, required = false }) {
   const isTooltipActive = activeTooltip === tooltipId;
 
   return (
     <label className={`text-sm ${className} relative`}>
-      <div className="mb-1 text-gray-700 flex items-center">
+      <div className="mb-1.5 text-gray-700 flex items-center">
         {label}
+        {required && <span className="text-red-500 ml-0.5 font-medium">*</span>}
         {tooltip && (
           <InfoIcon onClick={() => setActiveTooltip(isTooltipActive ? null : tooltipId)} />
         )}
@@ -1144,7 +1223,7 @@ function TextField({ label, value, onChange, placeholder, type = "text", step, c
         )}
       </div>
       <input
-        className="w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900"
+        className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
@@ -1155,38 +1234,43 @@ function TextField({ label, value, onChange, placeholder, type = "text", step, c
   );
 }
 
-function TextArea({ label, value, onChange, placeholder, className = "", tooltip, activeTooltip, setActiveTooltip, tooltipId }) {
+function TextArea({ label, value, onChange, placeholder, className = "", tooltip, activeTooltip, setActiveTooltip, tooltipId, maxLength = 500 }) {
   const isTooltipActive = activeTooltip === tooltipId;
 
   return (
     <label className={`text-sm ${className} relative`}>
-      <div className="mb-1 text-gray-700 flex items-center">
-        {label}
-        {tooltip && (
-          <InfoIcon onClick={() => setActiveTooltip(isTooltipActive ? null : tooltipId)} />
-        )}
-        {isTooltipActive && tooltip && (
-          <Tooltip content={tooltip} onClose={() => setActiveTooltip(null)} />
-        )}
+      <div className="mb-1.5 text-gray-700 flex items-center justify-between">
+        <div className="flex items-center">
+          {label}
+          {tooltip && (
+            <InfoIcon onClick={() => setActiveTooltip(isTooltipActive ? null : tooltipId)} />
+          )}
+          {isTooltipActive && tooltip && (
+            <Tooltip content={tooltip} onClose={() => setActiveTooltip(null)} />
+          )}
+        </div>
+        <span className="text-xs text-gray-400">{value.length}/{maxLength}</span>
       </div>
       <textarea
-        className="w-full rounded-xl border px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-900 min-h-[80px]"
+        className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400 min-h-[80px]"
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
+        maxLength={maxLength}
       />
     </label>
   );
 }
 
-function SelectField({ label, value, onChange, options, placeholder, tooltip, activeTooltip, setActiveTooltip, tooltipId }) {
+function SelectField({ label, value, onChange, options, placeholder, tooltip, activeTooltip, setActiveTooltip, tooltipId, required = false }) {
   const opts = options?.map((o) => (typeof o === "string" ? { label: o, value: o } : o)) || [];
   const isTooltipActive = activeTooltip === tooltipId;
 
   return (
     <label className="text-sm relative">
-      <div className="mb-1 text-gray-700 flex items-center">
+      <div className="mb-1.5 text-gray-700 flex items-center">
         {label}
+        {required && <span className="text-red-500 ml-0.5 font-medium">*</span>}
         {tooltip && (
           <InfoIcon onClick={() => setActiveTooltip(isTooltipActive ? null : tooltipId)} />
         )}
@@ -1195,7 +1279,7 @@ function SelectField({ label, value, onChange, options, placeholder, tooltip, ac
         )}
       </div>
       <select
-        className="w-full rounded-xl border px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-gray-900"
+        className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-200 hover:border-gray-400 cursor-pointer"
         value={value}
         onChange={(e) => onChange(e.target.value)}
       >
@@ -1236,7 +1320,7 @@ function MultiSelectField({ label, value, onChange, options, tooltip, activeTool
 
   return (
     <div className="text-sm relative">
-      <div className="mb-1 text-gray-700 flex items-center">
+      <div className="mb-1.5 text-gray-700 flex items-center">
         {label}
         {tooltip && (
           <InfoIcon onClick={() => setActiveTooltip(isTooltipActive ? null : tooltipId)} />
@@ -1245,7 +1329,7 @@ function MultiSelectField({ label, value, onChange, options, tooltip, activeTool
           <Tooltip content={tooltip} onClose={() => setActiveTooltip(null)} />
         )}
       </div>
-      <div className="border rounded-xl p-2 space-y-1 bg-white max-h-48 overflow-y-auto">
+      <div className="border border-gray-300 rounded-lg p-2 space-y-1 bg-white max-h-48 overflow-y-auto hover:border-gray-400 transition-all duration-200">
         {options.map((option) => (
           <label key={option} className="flex items-center gap-2 p-1 hover:bg-gray-50 rounded cursor-pointer">
             <input
