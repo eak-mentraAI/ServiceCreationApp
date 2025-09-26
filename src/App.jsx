@@ -469,25 +469,26 @@ export default function App() {
     return (
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <header className="sticky top-0 z-10 bg-white border-b">
-          <div className="px-6 py-3">
+          <div className="px-3 sm:px-6 py-2 sm:py-3">
             <div className="flex items-center justify-between">
               {/* Logo on left */}
-              <div className="flex-1">
-                <img src={rackspaceLogo} alt="Rackspace Technology" className="h-10" />
+              <div className="flex-shrink-0">
+                <img src={rackspaceLogo} alt="Rackspace Technology" className="h-6 sm:h-10" />
               </div>
 
               {/* Centered title */}
-              <div className="flex-1 text-center">
-                <h1 className="text-xl font-semibold">Service Approval Group</h1>
+              <div className="flex-1 text-center px-2">
+                <h1 className="text-sm sm:text-xl font-semibold">Service Approval Group</h1>
               </div>
 
               {/* Back button on right */}
-              <div className="flex-1 flex justify-end">
+              <div className="flex-shrink-0">
                 <button
                   onClick={() => setShowApprovers(false)}
-                  className="text-sm px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
+                  className="text-xs sm:text-sm px-2 sm:px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
                 >
-                  ← Back to Catalog
+                  <span className="hidden sm:inline">← Back to Catalog</span>
+                  <span className="sm:hidden">← Back</span>
                 </button>
               </div>
             </div>
@@ -550,32 +551,32 @@ export default function App() {
     <div className="min-h-screen bg-gray-50 text-gray-900">
       {/* Header with Rackspace logo, centered title, and user menu */}
       <header className="sticky top-0 z-10 bg-white border-b">
-        <div className="px-6 py-3">
+        <div className="px-3 sm:px-6 py-2 sm:py-3">
           <div className="flex items-center justify-between">
             {/* Logo on left */}
-            <div className="flex-1">
-              <img src={rackspaceLogo} alt="Rackspace Technology" className="h-10" />
+            <div className="flex-shrink-0">
+              <img src={rackspaceLogo} alt="Rackspace Technology" className="h-6 sm:h-10" />
             </div>
 
             {/* Centered title */}
-            <div className="flex-1 text-center">
-              <h1 className="text-xl font-semibold">Service Catalogue Definition - Mock</h1>
-              <p className="text-sm text-gray-600">Define and deploy managed services</p>
+            <div className="flex-1 text-center px-2">
+              <h1 className="text-sm sm:text-xl font-semibold">Service Catalogue Definition - Mock</h1>
+              <p className="hidden sm:block text-sm text-gray-600">Define and deploy managed services</p>
             </div>
 
             {/* User Menu on right */}
-            <div className="flex-1 flex justify-end">
+            <div className="flex-shrink-0">
               <div className="relative">
                 <button
                   onClick={() => setShowUserMenu(!showUserMenu)}
-                  className="flex items-center space-x-3 hover:bg-gray-50 rounded-lg p-2 transition-colors"
+                  className="flex items-center space-x-2 sm:space-x-3 hover:bg-gray-50 rounded-lg p-1 sm:p-2 transition-colors"
                 >
-                  <img src={currentUser.avatar} alt={currentUser.name} className="w-10 h-10 rounded-full" />
-                  <div className="text-left">
+                  <img src={currentUser.avatar} alt={currentUser.name} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full" />
+                  <div className="hidden sm:block text-left">
                     <div className="text-sm font-medium text-gray-900">{currentUser.name}</div>
                     <div className="text-xs text-gray-500">{currentUser.role}</div>
                   </div>
-                  <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="hidden sm:block w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
@@ -601,15 +602,15 @@ export default function App() {
         </div>
       </header>
 
-      <main className="px-6 py-6">
+      <main className="px-3 sm:px-6 py-4 sm:py-6">
         {/* Service Definition Section */}
         <div className="max-w-6xl mx-auto space-y-6">
           <Card title="Service Definition Racker UI">
             <div className="space-y-6">
               {/* Product Catalogue Details */}
               <div>
-                <h3 className="text-base font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Product Catalogue Details</h3>
-                <div className="grid grid-cols-2 gap-3">
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4 pb-2 border-b border-gray-200">Product Catalogue Details</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <TextField
                     label="Service Name"
                     value={svcName}
@@ -641,7 +642,7 @@ export default function App() {
                     activeTooltip={activeTooltip}
                     setActiveTooltip={setActiveTooltip}
                     tooltipId="tag-to-apply"
-                    className="col-span-2"
+                    className="col-span-1 sm:col-span-2"
                     required={true}
                   />
                   <TextArea
@@ -649,7 +650,7 @@ export default function App() {
                     value={svcDescription}
                     onChange={setSvcDescription}
                     placeholder="Read-only visibility + incident routing"
-                    className="col-span-2"
+                    className="col-span-1 sm:col-span-2"
                     tooltip="This is saved with the item and should be used to add a human friendly understanding of what the add-on does as configured"
                     activeTooltip={activeTooltip}
                     setActiveTooltip={setActiveTooltip}
@@ -660,8 +661,8 @@ export default function App() {
 
               {/* Billing Configuration */}
               <div>
-                <h3 className="text-base font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Billing Configuration</h3>
-                <div className="grid grid-cols-2 gap-3">
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4 pb-2 border-b border-gray-200">Billing Configuration</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <SelectField
                     label="Unit of Measure"
                     value={unit}
@@ -678,7 +679,7 @@ export default function App() {
                     value={billingCode}
                     onChange={setBillingCode}
                     placeholder="OBS-001"
-                    className="col-span-2"
+                    className="col-span-1 sm:col-span-2"
                     tooltip="Must be already created by ITS prior to starting this."
                     activeTooltip={activeTooltip}
                     setActiveTooltip={setActiveTooltip}
@@ -689,8 +690,8 @@ export default function App() {
 
               {/* Service Limits & Eligibility */}
               <div>
-                <h3 className="text-base font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Service Limits & Eligibility</h3>
-                <div className="grid grid-cols-2 gap-3">
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4 pb-2 border-b border-gray-200">Service Limits & Eligibility</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <TextField
                     label="Max Enrollments"
                     value={maxEnrollments}
@@ -744,8 +745,8 @@ export default function App() {
 
               {/* Ticket Workflow */}
               <div>
-                <h3 className="text-base font-semibold text-gray-900 mb-4 pb-2 border-b border-gray-200">Ticket Workflow</h3>
-                <div className="grid grid-cols-2 gap-3">
+                <h3 className="text-sm sm:text-base font-semibold text-gray-900 mb-3 sm:mb-4 pb-2 border-b border-gray-200">Ticket Workflow</h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <SelectField
                     label="Ticket Queue"
                     value={ticketQueue}
@@ -755,14 +756,14 @@ export default function App() {
                     activeTooltip={activeTooltip}
                     setActiveTooltip={setActiveTooltip}
                     tooltipId="ticket-queue"
-                    className="col-span-2"
+                    className="col-span-1 sm:col-span-2"
                   />
                   <TextArea
                     label="Ticket Details Template"
                     value={ticketDetails}
                     onChange={setTicketDetails}
                     placeholder="Please provision the requested service for @customerName. Device: @deviceName (ID: @deviceId). Customer ID: @customerId"
-                    className="col-span-2"
+                    className="col-span-1 sm:col-span-2"
                     tooltip="Will show up on every enrollment of this service on a customer device."
                     activeTooltip={activeTooltip}
                     setActiveTooltip={setActiveTooltip}
@@ -784,11 +785,11 @@ export default function App() {
             ) : (
               <div className="space-y-2">
                 {services.map((s, idx) => (
-                  <div key={s.id} className={`border rounded-lg p-4 hover:shadow-sm transition-all duration-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
-                    <div className="flex items-center justify-between">
+                  <div key={s.id} className={`border rounded-lg p-3 sm:p-4 hover:shadow-sm transition-all duration-200 ${idx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}>
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <div>
-                        <div className="font-medium text-gray-900">{s.name}</div>
-                        <div className="text-sm text-gray-600 mt-0.5">{s.category} • {s.workflow.tag} • {s.billing.code}</div>
+                        <div className="font-medium text-gray-900 text-sm sm:text-base">{s.name}</div>
+                        <div className="text-xs sm:text-sm text-gray-600 mt-0.5">{s.category} • {s.workflow.tag} • {s.billing.code}</div>
                       </div>
                       {s.status === "Pending Approval" ? (
                         <span className="text-xs bg-amber-100 text-amber-700 px-2.5 py-1 rounded-full font-medium border border-amber-200">
@@ -866,7 +867,7 @@ export default function App() {
           <div className="bg-white rounded-2xl shadow-sm border">
             <button
               onClick={() => setShowVariablesGuide(!showVariablesGuide)}
-              className="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 rounded-2xl transition-all duration-200 cursor-pointer"
+              className="w-full p-3 sm:p-4 flex items-center justify-between text-left hover:bg-gray-50 rounded-2xl transition-all duration-200 cursor-pointer"
             >
               <h2 className="text-base font-semibold">Dynamic Variables Guide</h2>
               <svg
@@ -879,7 +880,7 @@ export default function App() {
               </svg>
             </button>
             {showVariablesGuide && (
-              <div className="px-4 pb-4 space-y-4 border-t">
+              <div className="px-3 sm:px-4 pb-3 sm:pb-4 space-y-3 sm:space-y-4 border-t">
                 <div className="p-3 bg-green-50 rounded-lg border border-green-200 mt-4">
                   <div className="font-medium text-sm mb-2">How it works:</div>
                   <p className="text-sm text-gray-700">
@@ -927,7 +928,7 @@ export default function App() {
           <div className="bg-white rounded-2xl shadow-sm border">
             <button
               onClick={() => setShowApprovedAddOns(!showApprovedAddOns)}
-              className="w-full p-4 flex items-center justify-between text-left hover:bg-gray-50 rounded-2xl transition-all duration-200 cursor-pointer"
+              className="w-full p-3 sm:p-4 flex items-center justify-between text-left hover:bg-gray-50 rounded-2xl transition-all duration-200 cursor-pointer"
             >
               <div className="flex items-center gap-2 relative">
                 <h2 className="text-base font-semibold">Approved Add-Ons</h2>
@@ -954,7 +955,7 @@ export default function App() {
               </svg>
             </button>
             {showApprovedAddOns && (
-              <div className="px-4 pb-4 border-t">
+              <div className="px-3 sm:px-4 pb-3 sm:pb-4 border-t">
                 <div className="mt-4 space-y-3">
                   {approvedAddOns.map((addon) => (
                     <div key={addon.id} className="border rounded-lg p-4 hover:bg-gray-50 hover:shadow-sm transition-all duration-200 relative">
@@ -1081,8 +1082,8 @@ export default function App() {
       {showApprovalModal && lastSubmittedService && (
         <>
           <div className="fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setShowApprovalModal(false)} />
-          <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6">
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-3 sm:p-4">
+            <div className="bg-white rounded-lg sm:rounded-xl shadow-2xl max-w-md w-full p-4 sm:p-6">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
@@ -1090,7 +1091,7 @@ export default function App() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <h3 className="text-lg font-semibold text-gray-900">Service Submitted Successfully</h3>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900">Service Submitted Successfully</h3>
                 </div>
                 <button
                   onClick={() => setShowApprovalModal(false)}
@@ -1149,9 +1150,9 @@ export default function App() {
 // --- UI primitives ---
 function Card({ title, children }) {
   return (
-    <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-5">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">{title}</h2>
+    <div className="bg-white rounded-lg sm:rounded-2xl shadow-sm border border-gray-200 p-3 sm:p-5">
+      <div className="flex items-center justify-between mb-3 sm:mb-4">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900">{title}</h2>
       </div>
       {children}
     </div>
