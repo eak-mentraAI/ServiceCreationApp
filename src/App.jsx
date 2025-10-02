@@ -21,6 +21,12 @@ export default function App() {
   const [showApprovedAddOnsTooltip, setShowApprovedAddOnsTooltip] = useState(false);
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [lastSubmittedService, setLastSubmittedService] = useState(null);
+  const [showHealthTab, setShowHealthTab] = useState(false);
+  const [showFleetDashboard, setShowFleetDashboard] = useState(false);
+  const [selectedEnrollmentHealth, setSelectedEnrollmentHealth] = useState(null);
+  const [selectedCustomer, setSelectedCustomer] = useState("all");
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [fleetServiceFilter, setFleetServiceFilter] = useState("all");
 
   // Mock logged in user
   const currentUser = {
@@ -40,6 +46,33 @@ export default function App() {
   const [ticketQueue, setTicketQueue] = useState("Implementation");
   const [tag, setTag] = useState("svc:observability");
   const [ticketDetails, setTicketDetails] = useState("");
+
+  // --- Health Check State ---
+  const [healthCheckEnabled, setHealthCheckEnabled] = useState(false);
+  const [linuxScript, setLinuxScript] = useState("#!/bin/bash\nset -euo pipefail\n\n# Check service status\nsystemctl is-active myservice\nexit $?");
+  const [windowsScript, setWindowsScript] = useState("$ErrorActionPreference = 'Stop'\n\n# Check service status\nGet-Service -Name 'MyService' | Where-Object {$_.Status -eq 'Running'}\nif ($?) { exit 0 } else { exit 1 }");
+  const [scheduleFrequency, setScheduleFrequency] = useState("monthly");
+  const [customCron, setCustomCron] = useState("");
+  const [scheduleTime, setScheduleTime] = useState("02:00");
+  const [dayOfMonth, setDayOfMonth] = useState("1");
+  const [dayOfWeek, setDayOfWeek] = useState("");
+  const [timezone, setTimezone] = useState("UTC");
+  const [timeoutSeconds, setTimeoutSeconds] = useState("300");
+  const [successExitCodes, setSuccessExitCodes] = useState("0");
+  const [consecutiveFailures, setConsecutiveFailures] = useState("1");
+  const [gracePeriodHours, setGracePeriodHours] = useState("0");
+  const [suspendBilling, setSuspendBilling] = useState(true);
+  const [notifyChannels, setNotifyChannels] = useState(["email"]);
+  const [ticketSystem, setTicketSystem] = useState("ServiceNOW");
+  const [emailRecipients, setEmailRecipients] = useState("");
+  const [teamsChannel, setTeamsChannel] = useState("");
+  const [pagerdutyService, setPagerdutyService] = useState("");
+  const [additionalRecipients, setAdditionalRecipients] = useState("");
+  const [showNavDropdown, setShowNavDropdown] = useState(false);
+  const [targetOS, setTargetOS] = useState(["linux", "windows"]);
+  const [linuxScriptVersion, setLinuxScriptVersion] = useState(1);
+  const [windowsScriptVersion, setWindowsScriptVersion] = useState(1);
+  const [scriptApprovedBy, setScriptApprovedBy] = useState("");
 
   // Service limits
   const [maxEnrollments, setMaxEnrollments] = useState("");
@@ -85,6 +118,15 @@ export default function App() {
     ]
   };
 
+  // Mock health check runs data
+  const mockHealthCheckRuns = [
+    { runId: "run-001", enrollmentId: "enr-001", deviceId: "dev-101", deviceName: "acme-app-01", customerName: "Acme Health", serviceId: "svc-001", os: "linux", startedAt: "2025-02-01T02:00:00Z", finishedAt: "2025-02-01T02:00:15Z", exitCode: 0, status: "PASS", logSnippet: "Service is running normally", billingStatus: "active" },
+    { runId: "run-002", enrollmentId: "enr-002", deviceId: "dev-102", deviceName: "acme-db-01", customerName: "Acme Health", serviceId: "svc-001", os: "linux", startedAt: "2025-02-01T02:00:00Z", finishedAt: "2025-02-01T02:05:00Z", exitCode: 1, status: "FAIL", logSnippet: "Service not responding. Exit code 1.", billingStatus: "suspended", failureCount: 1 },
+    { runId: "run-003", enrollmentId: "enr-003", deviceId: "dev-201", deviceName: "bluefin-edge-01", customerName: "Bluefin Markets", serviceId: "svc-001", os: "windows", startedAt: "2025-02-01T02:00:00Z", finishedAt: "2025-02-01T02:00:45Z", exitCode: 0, status: "PASS", logSnippet: "All systems operational", billingStatus: "active" },
+    { runId: "run-004", enrollmentId: "enr-002", deviceId: "dev-102", deviceName: "acme-db-01", customerName: "Acme Health", serviceId: "svc-001", os: "linux", startedAt: "2025-01-01T02:00:00Z", finishedAt: "2025-01-01T02:00:12Z", exitCode: 0, status: "PASS", logSnippet: "Service health check passed", billingStatus: "active" },
+    { runId: "run-005", enrollmentId: "enr-003", deviceId: "dev-201", deviceName: "bluefin-edge-01", customerName: "Bluefin Markets", serviceId: "svc-002", os: "windows", startedAt: "2025-01-15T02:00:00Z", finishedAt: "2025-01-15T02:05:00Z", exitCode: -1, status: "TIMEOUT", logSnippet: "Health check timed out after 300 seconds", billingStatus: "suspended", failureCount: 2 },
+  ];
+
   // Mock approved add-ons data with associated customers/devices
   const approvedAddOns = [
     {
@@ -96,10 +138,17 @@ export default function App() {
       expiryDate: "2025-01-15",
       status: "Active",
       tag: "svc:datadog",
+      healthCheck: {
+        enabled: true,
+        lastRun: "2025-02-01T02:00:00Z",
+        passRate: "66%",
+        mttr: "2.5 hours",
+        suspendedCount: 1
+      },
       enrollments: [
-        { customerId: "cust-1", customerName: "Acme Health", deviceId: "dev-101", deviceName: "acme-app-01" },
-        { customerId: "cust-1", customerName: "Acme Health", deviceId: "dev-102", deviceName: "acme-db-01" },
-        { customerId: "cust-2", customerName: "Bluefin Markets", deviceId: "dev-201", deviceName: "bluefin-edge-01" }
+        { customerId: "cust-1", customerName: "Acme Health", deviceId: "dev-101", deviceName: "acme-app-01", healthStatus: "healthy", lastCheckPassed: true },
+        { customerId: "cust-1", customerName: "Acme Health", deviceId: "dev-102", deviceName: "acme-db-01", healthStatus: "suspended", lastCheckPassed: false },
+        { customerId: "cust-2", customerName: "Bluefin Markets", deviceId: "dev-201", deviceName: "bluefin-edge-01", healthStatus: "healthy", lastCheckPassed: true }
       ]
     },
     {
@@ -412,9 +461,46 @@ export default function App() {
         deviceTypes: applicableDeviceTypes,
         operatingSystems: applicableOS,
       },
+      health_check: healthCheckEnabled ? {
+        enabled: true,
+        targets: targetOS,
+        scripts: {
+          linux_bash: linuxScript,
+          windows_powershell: windowsScript,
+          linux_version: linuxScriptVersion,
+          windows_version: windowsScriptVersion,
+          approved_by: scriptApprovedBy || currentUser.email,
+          approved_at: new Date().toISOString()
+        },
+        schedule: {
+          frequency: scheduleFrequency,
+          cron: scheduleFrequency === "cron" ? customCron : null,
+          time_utc: scheduleTime,
+          day_of_month: scheduleFrequency === "monthly" ? parseInt(dayOfMonth) : null,
+          day_of_week: scheduleFrequency === "weekly" ? (dayOfWeek || 0) : null,
+          timezone: timezone,
+          timeout_seconds: parseInt(timeoutSeconds)
+        },
+        success_exit_codes: successExitCodes.split(",").map(c => parseInt(c.trim())),
+        failure_policy: {
+          consecutive_failures: parseInt(consecutiveFailures),
+          grace_period_hours: parseInt(gracePeriodHours),
+          suspend_billing: suspendBilling,
+          notify: {
+            channels: notifyChannels,
+            email_recipients: notifyChannels.includes("email") ? emailRecipients.split(",").map(e => e.trim()).filter(e => e) : [],
+            teams_webhook: notifyChannels.includes("teams") ? teamsChannel : null,
+            pagerduty_key: notifyChannels.includes("pagerduty") ? pagerdutyService : null,
+            ticket_system: notifyChannels.includes("ticket") ? ticketSystem : null,
+            roles: ["account_team"],
+            additional_recipients: additionalRecipients.split(",").map(e => e.trim()).filter(e => e)
+          }
+        }
+      } : null,
       status: "Pending Approval",
       submittedAt: new Date().toISOString(),
       approverGroup: approverGroup.ldapGroup,
+      contract_version: "1.2"
     };
 
     setServices((prev) => [newService, ...prev]);
@@ -429,6 +515,21 @@ export default function App() {
     setMinDevices("");
     setApplicableDeviceTypes(["All"]);
     setApplicableOS([]);
+    setHealthCheckEnabled(false);
+    setAdditionalRecipients("");
+  }
+
+  // Mock API Operations for Health Checks
+  function runHealthCheckTest(serviceId) {
+    alert(`🧪 Running dry-run health check test for service ${serviceId}...\n\nMock API: POST /api/services/${serviceId}/healthcheck/test\n\nResponse: Test passed successfully. Scripts validated and ready for deployment.`);
+  }
+
+  function runAdHocHealthCheck(enrollmentId) {
+    alert(`▶️ Running ad-hoc health check for enrollment ${enrollmentId}...\n\nMock API: POST /api/enrollments/${enrollmentId}/healthcheck/run\n\nResponse: Health check initiated. Check status in Health Monitor.`);
+  }
+
+  function viewHealthCheckStatus(enrollmentId) {
+    alert(`📊 Fetching health check status for enrollment ${enrollmentId}...\n\nMock API: GET /api/enrollments/${enrollmentId}/healthcheck/status\n\nResponse: Last 10 runs retrieved. Overall state: ACTIVE. See Health Monitor for full details.`);
   }
 
   // Function to generate example ticket with dynamic variables
@@ -465,15 +566,638 @@ export default function App() {
     };
   }
 
+  // Customer-facing Health Tab view
+  if (showHealthTab) {
+    return (
+      <div className="min-h-screen bg-gray-50 text-gray-900">
+        <header className="sticky top-0 z-10 bg-white border-b">
+          <div className="px-3 sm:px-6 py-2 sm:py-3">
+            <div className="flex items-center justify-between">
+              {/* Navigation Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowNavDropdown(!showNavDropdown)}
+                  className="flex items-center gap-3 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg transition hover:bg-gray-50 shadow-sm"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  <span className="text-sm font-semibold">Menu</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {showNavDropdown && (
+                  <div className="absolute left-0 mt-2 w-56 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setShowHealthTab(false);
+                          setShowFleetDashboard(false);
+                          setShowNavDropdown(false);
+                        }}
+                        className="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        Service Portal
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowHealthTab(true);
+                          setShowFleetDashboard(false);
+                          setShowNavDropdown(false);
+                        }}
+                        className="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Health Monitor
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowFleetDashboard(true);
+                          setShowHealthTab(false);
+                          setShowNavDropdown(false);
+                        }}
+                        className="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        Fleet Dashboard
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 text-center px-2">
+                <h1 className="text-sm sm:text-xl font-semibold">Service Health Monitor</h1>
+                <p className="text-xs text-gray-600">Customer Portal - Health Check Status</p>
+              </div>
+
+              {/* User Menu on right */}
+              <div className="flex-shrink-0">
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center space-x-2 sm:space-x-3 hover:bg-gray-50 rounded-lg p-1 sm:p-2 transition-colors"
+                  >
+                    <img src={currentUser.avatar} alt={currentUser.name} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full" />
+                    <div className="hidden sm:block text-left">
+                      <div className="text-sm font-medium text-gray-900">{currentUser.name}</div>
+                      <div className="text-xs text-gray-500">{currentUser.role}</div>
+                    </div>
+                    <svg className="hidden sm:block w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-56 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                      <div className="p-4 border-b">
+                        <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
+                        <p className="text-xs text-gray-500">{currentUser.email}</p>
+                      </div>
+                      <div className="py-1">
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile Settings</button>
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Service History</button>
+                        <button
+                          onClick={() => {
+                            setShowHealthTab(false);
+                            setShowFleetDashboard(false);
+                            setShowUserMenu(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                          </svg>
+                          Service Portal
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowFleetDashboard(true);
+                            setShowHealthTab(false);
+                            setShowUserMenu(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                          </svg>
+                          Fleet Dashboard (Ops)
+                        </button>
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Documentation</button>
+                        <hr className="my-1" />
+                        <button className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">Sign Out</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="px-6 py-6 max-w-6xl mx-auto">
+          {/* Customer Selection and Search */}
+          <Card title="Customer Selection">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Select Customer</label>
+                <select
+                  value={selectedCustomer}
+                  onChange={(e) => setSelectedCustomer(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value="all">All Customers</option>
+                  <option value="cust-1">Acme Health (cust-1)</option>
+                  <option value="cust-2">Bluefin Markets (cust-2)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Search by Name or Account Number</label>
+                <input
+                  type="text"
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  placeholder="Enter customer name or account number..."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                />
+              </div>
+            </div>
+          </Card>
+
+          <Card title="My Services - Health Status">
+            <div className="space-y-3">
+              {approvedAddOns.filter(a => a.healthCheck?.enabled).map(addon => {
+                // Filter enrollments based on customer selection and search
+                const filteredEnrollments = addon.enrollments.filter(enrollment => {
+                  const matchesCustomer = selectedCustomer === "all" || enrollment.customerId === selectedCustomer;
+                  const matchesSearch = !customerSearch ||
+                    enrollment.customerName.toLowerCase().includes(customerSearch.toLowerCase()) ||
+                    enrollment.customerId.toLowerCase().includes(customerSearch.toLowerCase());
+                  return matchesCustomer && matchesSearch;
+                });
+
+                if (filteredEnrollments.length === 0) return null;
+
+                return (
+                <div key={addon.id} className="border rounded-lg p-4 bg-white">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <h3 className="font-semibold text-lg">{addon.name}</h3>
+                      <p className="text-sm text-gray-600">{addon.category}</p>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-sm text-gray-600">Pass Rate</div>
+                      <div className="text-2xl font-bold text-green-600">{addon.healthCheck.passRate}</div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4 mb-3 p-3 bg-gray-50 rounded">
+                    <div>
+                      <div className="text-xs text-gray-600">Last Run</div>
+                      <div className="text-sm font-medium">{new Date(addon.healthCheck.lastRun).toLocaleString()}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-600">MTTR</div>
+                      <div className="text-sm font-medium">{addon.healthCheck.mttr}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-gray-600">Suspended</div>
+                      <div className="text-sm font-medium text-red-600">{addon.healthCheck.suspendedCount} devices</div>
+                    </div>
+                  </div>
+
+                  <div className="border-t pt-3">
+                    <div className="text-sm font-semibold mb-2">Device Status ({filteredEnrollments.length} devices)</div>
+                    <div className="space-y-2">
+                      {filteredEnrollments.map(enrollment => (
+                        <div key={enrollment.deviceId} className="flex items-center justify-between p-2 bg-gray-50 rounded">
+                          <div className="flex items-center gap-3">
+                            <div className={`w-3 h-3 rounded-full ${enrollment.healthStatus === 'healthy' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                            <div>
+                              <div className="text-sm font-medium">{enrollment.deviceName}</div>
+                              <div className="text-xs text-gray-600">{enrollment.deviceId} • {enrollment.customerName}</div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                              enrollment.healthStatus === 'healthy'
+                                ? 'bg-green-100 text-green-700'
+                                : 'bg-red-100 text-red-700'
+                            }`}>
+                              {enrollment.healthStatus === 'healthy' ? 'Healthy' : 'Suspended'}
+                            </span>
+                            <button
+                              onClick={() => setSelectedEnrollmentHealth(enrollment)}
+                              className="text-xs text-blue-600 hover:text-blue-700 underline"
+                            >
+                              View Runs →
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            </div>
+          </Card>
+
+          {selectedEnrollmentHealth && (
+            <Card title={`Health Check History - ${selectedEnrollmentHealth.deviceName}`}>
+              <div className="space-y-2">
+                {mockHealthCheckRuns
+                  .filter(run => run.deviceId === selectedEnrollmentHealth.deviceId)
+                  .map(run => (
+                    <div key={run.runId} className="border rounded-lg p-3 bg-white">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${
+                              run.status === 'PASS' ? 'bg-green-100 text-green-700' :
+                              run.status === 'FAIL' ? 'bg-red-100 text-red-700' :
+                              'bg-yellow-100 text-yellow-700'
+                            }`}>
+                              {run.status}
+                            </span>
+                            <span className="text-sm text-gray-600">Exit Code: {run.exitCode}</span>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1">
+                            {new Date(run.startedAt).toLocaleString()} → {new Date(run.finishedAt).toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className={`text-xs px-2 py-1 rounded ${
+                            run.billingStatus === 'active' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                          }`}>
+                            Billing: {run.billingStatus}
+                          </div>
+                        </div>
+                      </div>
+                      {run.logSnippet && (
+                        <div className="mt-2 p-2 bg-gray-50 rounded text-xs font-mono">
+                          {run.logSnippet}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </Card>
+          )}
+        </main>
+      </div>
+    );
+  }
+
+  // Fleet Dashboard view
+  if (showFleetDashboard) {
+    // Filter services based on selection - include ALL approved services
+    const filteredServices = fleetServiceFilter === "all"
+      ? approvedAddOns
+      : approvedAddOns.filter(a => a.id === fleetServiceFilter);
+
+    const totalEnrollments = filteredServices.reduce((sum, a) => sum + a.enrollments.length, 0);
+    const healthyCount = filteredServices.reduce((sum, a) =>
+      sum + a.enrollments.filter(e => e.healthStatus === 'healthy' || !e.healthStatus).length, 0);
+    const suspendedCount = filteredServices.reduce((sum, a) =>
+      sum + a.enrollments.filter(e => e.healthStatus === 'suspended').length, 0);
+    const overallPassRate = totalEnrollments > 0 ? ((healthyCount / totalEnrollments) * 100).toFixed(1) : '0';
+
+    return (
+      <div className="min-h-screen bg-gray-50 text-gray-900">
+        <header className="sticky top-0 z-10 bg-white border-b">
+          <div className="px-3 sm:px-6 py-2 sm:py-3">
+            <div className="flex items-center justify-between">
+              {/* Navigation Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowNavDropdown(!showNavDropdown)}
+                  className="flex items-center gap-3 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg transition hover:bg-gray-50 shadow-sm"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  <span className="text-sm font-semibold">Menu</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {showNavDropdown && (
+                  <div className="absolute left-0 mt-2 w-56 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setShowHealthTab(false);
+                          setShowFleetDashboard(false);
+                          setShowNavDropdown(false);
+                        }}
+                        className="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        Service Portal
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowHealthTab(true);
+                          setShowFleetDashboard(false);
+                          setShowNavDropdown(false);
+                        }}
+                        className="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Health Monitor
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowFleetDashboard(true);
+                          setShowHealthTab(false);
+                          setShowNavDropdown(false);
+                        }}
+                        className="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        Fleet Dashboard
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              <div className="flex-1 text-center px-2">
+                <h1 className="text-sm sm:text-xl font-semibold">Fleet Health Dashboard</h1>
+                <p className="text-xs text-gray-600">Operations Center - Service Health Metrics</p>
+              </div>
+
+              {/* User Menu on right */}
+              <div className="flex-shrink-0">
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center space-x-2 sm:space-x-3 hover:bg-gray-50 rounded-lg p-1 sm:p-2 transition-colors"
+                  >
+                    <img src={currentUser.avatar} alt={currentUser.name} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full" />
+                    <div className="hidden sm:block text-left">
+                      <div className="text-sm font-medium text-gray-900">{currentUser.name}</div>
+                      <div className="text-xs text-gray-500">{currentUser.role}</div>
+                    </div>
+                    <svg className="hidden sm:block w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-56 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                      <div className="p-4 border-b">
+                        <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
+                        <p className="text-xs text-gray-500">{currentUser.email}</p>
+                      </div>
+                      <div className="py-1">
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile Settings</button>
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Service History</button>
+                        <button
+                          onClick={() => {
+                            setShowHealthTab(false);
+                            setShowFleetDashboard(false);
+                            setShowUserMenu(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                          </svg>
+                          Service Portal
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowHealthTab(true);
+                            setShowFleetDashboard(false);
+                            setShowUserMenu(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Health Monitor (Customer)
+                        </button>
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Documentation</button>
+                        <hr className="my-1" />
+                        <button className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">Sign Out</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        <main className="px-6 py-6 max-w-7xl mx-auto">
+          {/* Service Filter */}
+          <div className="bg-white rounded-lg border p-4 mb-6">
+            <label className="text-sm font-medium text-gray-700 mb-2 block">Filter by Service</label>
+            <select
+              value={fleetServiceFilter}
+              onChange={(e) => setFleetServiceFilter(e.target.value)}
+              className="w-full sm:w-64 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+            >
+              <option value="all">All Services</option>
+              {approvedAddOns.map(addon => (
+                <option key={addon.id} value={addon.id}>{addon.name}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div className="bg-white rounded-lg border p-4">
+              <div className="text-sm text-gray-600 mb-1">Total Enrollments</div>
+              <div className="text-3xl font-bold text-gray-900">{totalEnrollments}</div>
+              <div className="text-xs text-gray-500 mt-1">Across all services</div>
+            </div>
+            <div className="bg-white rounded-lg border p-4">
+              <div className="text-sm text-gray-600 mb-1">Overall Pass Rate</div>
+              <div className="text-3xl font-bold text-green-600">{overallPassRate}%</div>
+              <div className="text-xs text-gray-500 mt-1">Last 30 days</div>
+            </div>
+            <div className="bg-white rounded-lg border p-4">
+              <div className="text-sm text-gray-600 mb-1">Healthy Devices</div>
+              <div className="text-3xl font-bold text-green-600">{healthyCount}</div>
+              <div className="text-xs text-gray-500 mt-1">Active billing</div>
+            </div>
+            <div className="bg-white rounded-lg border p-4">
+              <div className="text-sm text-gray-600 mb-1">Suspended Devices</div>
+              <div className="text-3xl font-bold text-red-600">{suspendedCount}</div>
+              <div className="text-xs text-gray-500 mt-1">Billing paused</div>
+            </div>
+          </div>
+
+          {/* Service Breakdown */}
+          <Card title="Service Health Breakdown">
+            <div className="space-y-3">
+              {filteredServices.map(addon => {
+                const healthy = addon.enrollments.filter(e => e.healthStatus === 'healthy' || !e.healthStatus).length;
+                const total = addon.enrollments.length;
+                const passRate = total > 0 ? ((healthy / total) * 100).toFixed(0) : '0';
+
+                return (
+                  <div key={addon.id} className="border rounded-lg p-4 bg-white">
+                    <div className="flex items-center justify-between mb-2">
+                      <div>
+                        <h3 className="font-semibold">{addon.name}</h3>
+                        <p className="text-xs text-gray-600">{addon.category}</p>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-sm text-gray-600">Pass Rate</div>
+                        <div className={`text-xl font-bold ${passRate >= 80 ? 'text-green-600' : passRate >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                          {passRate}%
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-4 gap-3 text-sm">
+                      <div>
+                        <div className="text-gray-600 text-xs">Healthy</div>
+                        <div className="font-semibold text-green-600">{healthy}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600 text-xs">Suspended</div>
+                        <div className="font-semibold text-red-600">{addon.healthCheck?.suspendedCount || 0}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600 text-xs">MTTR</div>
+                        <div className="font-semibold">{addon.healthCheck?.mttr || 'N/A'}</div>
+                      </div>
+                      <div>
+                        <div className="text-gray-600 text-xs">Last Run</div>
+                        <div className="font-semibold text-xs">{addon.healthCheck?.lastRun ? new Date(addon.healthCheck.lastRun).toLocaleDateString() : 'N/A'}</div>
+                      </div>
+                    </div>
+                    <div className="mt-2">
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-green-500 h-2 rounded-full transition-all"
+                          style={{width: `${passRate}%`}}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Card>
+
+          {/* Recent Health Check Runs */}
+          <Card title="Recent Health Check Runs">
+            <div className="space-y-2">
+              {mockHealthCheckRuns.slice(0, 10).map(run => (
+                <div key={run.runId} className="flex items-center justify-between p-3 border rounded bg-white text-sm">
+                  <div className="flex items-center gap-3">
+                    <span className={`px-2 py-1 rounded text-xs font-medium ${
+                      run.status === 'PASS' ? 'bg-green-100 text-green-700' :
+                      run.status === 'FAIL' ? 'bg-red-100 text-red-700' :
+                      'bg-yellow-100 text-yellow-700'
+                    }`}>
+                      {run.status}
+                    </span>
+                    <div>
+                      <div className="font-medium">{run.deviceName}</div>
+                      <div className="text-xs text-gray-600">{run.customerName} • {run.os}</div>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-xs text-gray-600">{new Date(run.startedAt).toLocaleString()}</div>
+                    <div className={`text-xs ${run.billingStatus === 'active' ? 'text-green-600' : 'text-red-600'}`}>
+                      Billing: {run.billingStatus}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        </main>
+      </div>
+    );
+  }
+
   if (showApprovers) {
     return (
       <div className="min-h-screen bg-gray-50 text-gray-900">
         <header className="sticky top-0 z-10 bg-white border-b">
           <div className="px-3 sm:px-6 py-2 sm:py-3">
             <div className="flex items-center justify-between">
-              {/* Logo on left */}
-              <div className="flex-shrink-0">
-                <img src={rackspaceLogo} alt="Rackspace Technology" className="h-6 sm:h-10" />
+              {/* Navigation Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowNavDropdown(!showNavDropdown)}
+                  className="flex items-center gap-3 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg transition hover:bg-gray-50 shadow-sm"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  <span className="text-sm font-semibold">Menu</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {showNavDropdown && (
+                  <div className="absolute left-0 mt-2 w-56 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setShowApprovers(false);
+                          setShowNavDropdown(false);
+                        }}
+                        className="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        Service Portal
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowHealthTab(true);
+                          setShowApprovers(false);
+                          setShowNavDropdown(false);
+                        }}
+                        className="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Health Monitor
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowFleetDashboard(true);
+                          setShowApprovers(false);
+                          setShowNavDropdown(false);
+                        }}
+                        className="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        Fleet Dashboard
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Centered title */}
@@ -481,15 +1205,77 @@ export default function App() {
                 <h1 className="text-sm sm:text-xl font-semibold">Service Approval Group</h1>
               </div>
 
-              {/* Back button on right */}
+              {/* User Menu on right */}
               <div className="flex-shrink-0">
-                <button
-                  onClick={() => setShowApprovers(false)}
-                  className="text-xs sm:text-sm px-2 sm:px-3 py-1 rounded bg-gray-200 hover:bg-gray-300"
-                >
-                  <span className="hidden sm:inline">← Back to Catalog</span>
-                  <span className="sm:hidden">← Back</span>
-                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setShowUserMenu(!showUserMenu)}
+                    className="flex items-center space-x-2 sm:space-x-3 hover:bg-gray-50 rounded-lg p-1 sm:p-2 transition-colors"
+                  >
+                    <img src={currentUser.avatar} alt={currentUser.name} className="w-8 h-8 sm:w-10 sm:h-10 rounded-full" />
+                    <div className="hidden sm:block text-left">
+                      <div className="text-sm font-medium text-gray-900">{currentUser.name}</div>
+                      <div className="text-xs text-gray-500">{currentUser.role}</div>
+                    </div>
+                    <svg className="hidden sm:block w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+
+                  {showUserMenu && (
+                    <div className="absolute right-0 mt-2 w-56 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                      <div className="p-4 border-b">
+                        <p className="text-sm font-medium text-gray-900">{currentUser.name}</p>
+                        <p className="text-xs text-gray-500">{currentUser.email}</p>
+                      </div>
+                      <div className="py-1">
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile Settings</button>
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Service History</button>
+                        <button
+                          onClick={() => {
+                            setShowApprovers(false);
+                            setShowUserMenu(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                          </svg>
+                          Service Portal
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowHealthTab(true);
+                            setShowApprovers(false);
+                            setShowUserMenu(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                          Health Monitor (Customer)
+                        </button>
+                        <button
+                          onClick={() => {
+                            setShowFleetDashboard(true);
+                            setShowApprovers(false);
+                            setShowUserMenu(false);
+                          }}
+                          className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                          </svg>
+                          Fleet Dashboard (Ops)
+                        </button>
+                        <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Documentation</button>
+                        <hr className="my-1" />
+                        <button className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">Sign Out</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -553,9 +1339,54 @@ export default function App() {
       <header className="sticky top-0 z-10 bg-white border-b">
         <div className="px-3 sm:px-6 py-2 sm:py-3">
           <div className="flex items-center justify-between">
-            {/* Logo on left */}
-            <div className="flex-shrink-0">
-              <img src={rackspaceLogo} alt="Rackspace Technology" className="h-6 sm:h-10" />
+            {/* Navigation dropdown on left */}
+            <div className="flex items-center gap-4">
+              {/* Navigation Dropdown */}
+              <div className="relative">
+                <button
+                  onClick={() => setShowNavDropdown(!showNavDropdown)}
+                  className="flex items-center gap-3 px-5 py-3 bg-white border border-gray-300 text-gray-700 rounded-lg transition hover:bg-gray-50 shadow-sm"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                  <span className="text-sm font-semibold">Menu</span>
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {showNavDropdown && (
+                  <div className="absolute left-0 mt-2 w-56 rounded-lg bg-white shadow-lg ring-1 ring-black ring-opacity-5 z-50">
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setShowHealthTab(true);
+                          setShowNavDropdown(false);
+                        }}
+                        className="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Health Monitor
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowFleetDashboard(true);
+                          setShowNavDropdown(false);
+                        }}
+                        className="flex items-center gap-3 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        Fleet Dashboard
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Centered title */}
@@ -590,6 +1421,30 @@ export default function App() {
                     <div className="py-1">
                       <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Profile Settings</button>
                       <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Service History</button>
+                      <button
+                        onClick={() => {
+                          setShowHealthTab(true);
+                          setShowUserMenu(false);
+                        }}
+                        className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Health Monitor (Customer)
+                      </button>
+                      <button
+                        onClick={() => {
+                          setShowFleetDashboard(true);
+                          setShowUserMenu(false);
+                        }}
+                        className="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                        </svg>
+                        Fleet Dashboard (Ops)
+                      </button>
                       <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Documentation</button>
                       <hr className="my-1" />
                       <button className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100">Sign Out</button>
@@ -770,6 +1625,306 @@ export default function App() {
                     tooltipId="ticket-details"
                   />
                 </div>
+              </div>
+
+              {/* Health Checks */}
+              <div className="border-t-2 border-blue-200 pt-6">
+                <div className="flex items-center justify-between mb-3 sm:mb-4">
+                  <h3 className="text-sm sm:text-base font-semibold text-gray-900 pb-2 border-b border-gray-200 inline-block">Health Checks</h3>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-gray-600">Enable Health Checks</span>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={healthCheckEnabled}
+                        onChange={(e) => setHealthCheckEnabled(e.target.checked)}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                </div>
+
+                {healthCheckEnabled && (
+                  <div className="space-y-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                    {/* Target Operating Systems */}
+                    <div>
+                      <label className="text-sm font-medium text-gray-700 mb-2 block">Target Operating Systems</label>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={targetOS.includes("linux")}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setTargetOS([...targetOS, "linux"]);
+                              } else {
+                                setTargetOS(targetOS.filter(os => os !== "linux"));
+                              }
+                            }}
+                          />
+                          <span className="text-sm">Linux</span>
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={targetOS.includes("windows")}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setTargetOS([...targetOS, "windows"]);
+                              } else {
+                                setTargetOS(targetOS.filter(os => os !== "windows"));
+                              }
+                            }}
+                          />
+                          <span className="text-sm">Windows</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Scripts */}
+                    {targetOS.includes("linux") && (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-sm font-medium text-gray-700">Linux Bash Script (v{linuxScriptVersion})</label>
+                        </div>
+                        <textarea
+                          value={linuxScript}
+                          onChange={(e) => setLinuxScript(e.target.value)}
+                          className="w-full h-32 font-mono text-xs p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="#!/bin/bash"
+                        />
+                        <div className="text-xs text-gray-600 mt-1">Exit code 0 = success. Encrypted at rest, SHA-256 hashed.</div>
+                      </div>
+                    )}
+
+                    {targetOS.includes("windows") && (
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <label className="text-sm font-medium text-gray-700">Windows PowerShell Script (v{windowsScriptVersion})</label>
+                        </div>
+                        <textarea
+                          value={windowsScript}
+                          onChange={(e) => setWindowsScript(e.target.value)}
+                          className="w-full h-32 font-mono text-xs p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                          placeholder="$ErrorActionPreference = 'Stop'"
+                        />
+                        <div className="text-xs text-gray-600 mt-1">Exit code 0 = success. Encrypted at rest, SHA-256 hashed.</div>
+                      </div>
+                    )}
+
+                    {/* Schedule */}
+                    <div className="border-t border-blue-300 pt-4">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Schedule Configuration</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <SelectField
+                          label="Frequency"
+                          value={scheduleFrequency}
+                          onChange={setScheduleFrequency}
+                          options={["daily", "weekly", "monthly", "cron"]}
+                        />
+                        {scheduleFrequency === "cron" && (
+                          <TextField
+                            label="Custom Cron Expression"
+                            value={customCron}
+                            onChange={setCustomCron}
+                            placeholder="0 2 1 * *"
+                            className="col-span-1 sm:col-span-2"
+                          />
+                        )}
+                        <TextField
+                          label="Time (UTC)"
+                          value={scheduleTime}
+                          onChange={setScheduleTime}
+                          type="time"
+                        />
+                        {scheduleFrequency === "monthly" && (
+                          <TextField
+                            label="Day of Month"
+                            value={dayOfMonth}
+                            onChange={setDayOfMonth}
+                            type="number"
+                            placeholder="1-31"
+                          />
+                        )}
+                        {scheduleFrequency === "weekly" && (
+                          <SelectField
+                            label="Day of Week"
+                            value={dayOfWeek}
+                            onChange={setDayOfWeek}
+                            options={[
+                              { label: "Sunday", value: "0" },
+                              { label: "Monday", value: "1" },
+                              { label: "Tuesday", value: "2" },
+                              { label: "Wednesday", value: "3" },
+                              { label: "Thursday", value: "4" },
+                              { label: "Friday", value: "5" },
+                              { label: "Saturday", value: "6" }
+                            ]}
+                          />
+                        )}
+                        <SelectField
+                          label="Timezone"
+                          value={timezone}
+                          onChange={setTimezone}
+                          options={["UTC", "America/New_York", "America/Chicago", "America/Denver", "America/Los_Angeles", "Europe/London", "Asia/Tokyo"]}
+                        />
+                        <TextField
+                          label="Timeout (seconds)"
+                          value={timeoutSeconds}
+                          onChange={setTimeoutSeconds}
+                          type="number"
+                          placeholder="300"
+                        />
+                        <TextField
+                          label="Success Exit Codes"
+                          value={successExitCodes}
+                          onChange={setSuccessExitCodes}
+                          placeholder="0"
+                          tooltip="Comma-separated list of exit codes that indicate success"
+                          activeTooltip={activeTooltip}
+                          setActiveTooltip={setActiveTooltip}
+                          tooltipId="success-codes"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Failure Policy */}
+                    <div className="border-t border-blue-300 pt-4">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Failure Policy</h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <TextField
+                          label="Consecutive Failures Required"
+                          value={consecutiveFailures}
+                          onChange={setConsecutiveFailures}
+                          type="number"
+                          placeholder="1"
+                        />
+                        <TextField
+                          label="Grace Period (hours)"
+                          value={gracePeriodHours}
+                          onChange={setGracePeriodHours}
+                          type="number"
+                          placeholder="0"
+                          tooltip="Hours to wait before suspending billing after failure threshold"
+                          activeTooltip={activeTooltip}
+                          setActiveTooltip={setActiveTooltip}
+                          tooltipId="grace-period"
+                        />
+                        <div className="col-span-1 sm:col-span-2">
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={suspendBilling}
+                              onChange={(e) => setSuspendBilling(e.target.checked)}
+                              className="rounded"
+                            />
+                            <span className="text-sm font-medium text-gray-700">Suspend Billing on Failure</span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Notifications */}
+                    <div className="border-t border-blue-300 pt-4">
+                      <h4 className="text-sm font-semibold text-gray-900 mb-3">Notification Configuration</h4>
+                      <div className="space-y-3">
+                        <div>
+                          <label className="text-sm font-medium text-gray-700 mb-2 block">Notification Channels</label>
+                          <div className="flex gap-4 flex-wrap">
+                            {["email", "teams", "pagerduty", "ticket"].map(channel => (
+                              <label key={channel} className="flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={notifyChannels.includes(channel)}
+                                  onChange={(e) => {
+                                    if (e.target.checked) {
+                                      setNotifyChannels([...notifyChannels, channel]);
+                                    } else {
+                                      setNotifyChannels(notifyChannels.filter(c => c !== channel));
+                                    }
+                                  }}
+                                />
+                                <span className="text-sm capitalize">{channel === "teams" ? "Teams" : channel === "pagerduty" ? "PagerDuty" : channel === "ticket" ? "Ticket" : "Email"}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+
+                        {notifyChannels.includes("email") && (
+                          <TextField
+                            label="Email Recipients (comma-separated)"
+                            value={emailRecipients}
+                            onChange={setEmailRecipients}
+                            placeholder="ops-team@company.com, sre@company.com"
+                            tooltip="Email addresses to notify on health check failures"
+                            activeTooltip={activeTooltip}
+                            setActiveTooltip={setActiveTooltip}
+                            tooltipId="email-recipients"
+                          />
+                        )}
+
+                        {notifyChannels.includes("teams") && (
+                          <TextField
+                            label="Microsoft Teams Channel Webhook URL"
+                            value={teamsChannel}
+                            onChange={setTeamsChannel}
+                            placeholder="https://outlook.office.com/webhook/..."
+                            tooltip="Teams webhook URL for notifications"
+                            activeTooltip={activeTooltip}
+                            setActiveTooltip={setActiveTooltip}
+                            tooltipId="teams-channel"
+                          />
+                        )}
+
+                        {notifyChannels.includes("pagerduty") && (
+                          <TextField
+                            label="PagerDuty Integration Key"
+                            value={pagerdutyService}
+                            onChange={setPagerdutyService}
+                            placeholder="R03XXXXXXXXXXXXXXXXXX"
+                            tooltip="PagerDuty service integration key for alerts"
+                            activeTooltip={activeTooltip}
+                            setActiveTooltip={setActiveTooltip}
+                            tooltipId="pagerduty-service"
+                          />
+                        )}
+
+                        {notifyChannels.includes("ticket") && (
+                          <div>
+                            <SelectField
+                              label="Ticket System"
+                              value={ticketSystem}
+                              onChange={setTicketSystem}
+                              options={["ServiceNOW", "CORE", "Encore"]}
+                              tooltip="Select which ticketing system to create tickets in when health checks fail"
+                              activeTooltip={activeTooltip}
+                              setActiveTooltip={setActiveTooltip}
+                              tooltipId="ticket-system"
+                            />
+                          </div>
+                        )}
+
+                        <TextField
+                          label="Additional Recipients (comma-separated emails)"
+                          value={additionalRecipients}
+                          onChange={setAdditionalRecipients}
+                          placeholder="ops@company.com, oncall@company.com"
+                          className="col-span-1 sm:col-span-2"
+                          tooltip="Account team and CSM are auto-notified. Add extra recipients here."
+                          activeTooltip={activeTooltip}
+                          setActiveTooltip={setActiveTooltip}
+                          tooltipId="additional-recipients"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="bg-amber-50 border border-amber-200 rounded p-3 text-xs text-amber-800">
+                      <strong>Security:</strong> Scripts are encrypted at rest, SHA-256 hashed, and require SteerCo approval before activation.
+                      Health checks run in sandboxed, non-privileged mode. Output limited to 1-2 KB in notifications; full logs stored securely.
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="mt-4 flex gap-2 justify-end">
@@ -1065,6 +2220,44 @@ export default function App() {
                           )}
                         </div>
                       </div>
+
+                      {/* Health Check Actions (Phase 2) */}
+                      {addon.healthCheck?.enabled && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="text-xs font-semibold text-blue-900">Health Check Actions</div>
+                            <div className="flex items-center gap-1">
+                              <span className="text-xs text-gray-600">Pass Rate:</span>
+                              <span className="text-xs font-bold text-green-600">{addon.healthCheck.passRate}</span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2 flex-wrap">
+                            <button
+                              onClick={() => runHealthCheckTest(addon.id)}
+                              className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 border border-blue-300"
+                            >
+                              🧪 Test Health Check
+                            </button>
+                            <button
+                              onClick={() => runAdHocHealthCheck(`enr-${addon.id}`)}
+                              className="text-xs px-2 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 border border-green-300"
+                            >
+                              ▶️ Run Ad-Hoc Check
+                            </button>
+                            <button
+                              onClick={() => viewHealthCheckStatus(`enr-${addon.id}`)}
+                              className="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 border border-purple-300"
+                            >
+                              📊 View Status
+                            </button>
+                          </div>
+                          {addon.healthCheck.suspendedCount > 0 && (
+                            <div className="mt-2 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700">
+                              ⚠️ {addon.healthCheck.suspendedCount} device(s) suspended due to failed health checks. Billing paused.
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1075,7 +2268,15 @@ export default function App() {
       </main>
 
       <footer className="max-w-7xl mx-auto px-4 py-6 text-xs text-gray-500">
-        This mock demonstrates service definition with customizable ticket templates using dynamic variables that will be populated when customers request services.
+        <div className="text-center space-y-1">
+          <p>
+            This mock demonstrates service definition with customizable ticket templates and <strong className="text-blue-600">Phase 2 Health Check System</strong>.
+          </p>
+          <p className="text-gray-400">
+            Features: OS-specific health checks (Bash/PowerShell), flexible scheduling (daily/weekly/monthly/cron), auto-suspend billing on failure,
+            customer health portal, fleet dashboard with MTTR metrics, multi-channel notifications, and full audit trail.
+          </p>
+        </div>
       </footer>
 
       {/* Approval Confirmation Modal */}
