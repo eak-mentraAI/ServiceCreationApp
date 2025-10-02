@@ -566,7 +566,7 @@ export default function App() {
     };
   }
 
-  // Customer-facing Health Tab view
+  // My Services view - shows logged-in user's service enrollments
   if (showHealthTab) {
     return (
       <div className="min-h-screen bg-gray-50 text-gray-900">
@@ -615,7 +615,7 @@ export default function App() {
                         <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Health Monitor
+                        My Services
                       </button>
                       <button
                         onClick={() => {
@@ -635,8 +635,8 @@ export default function App() {
                 )}
               </div>
               <div className="flex-1 text-center px-2">
-                <h1 className="text-sm sm:text-xl font-semibold">Service Health Monitor</h1>
-                <p className="text-xs text-gray-600">Customer Portal - Health Check Status</p>
+                <h1 className="text-sm sm:text-xl font-semibold">My Services</h1>
+                <p className="text-xs text-gray-600">Your Service Enrollments and Health Status</p>
               </div>
 
               {/* User Menu on right */}
@@ -704,47 +704,11 @@ export default function App() {
         </header>
 
         <main className="px-6 py-6 max-w-6xl mx-auto">
-          {/* Customer Selection and Search */}
-          <Card title="Customer Selection">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">Select Customer</label>
-                <select
-                  value={selectedCustomer}
-                  onChange={(e) => setSelectedCustomer(e.target.value)}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                >
-                  <option value="all">All Customers</option>
-                  <option value="cust-1">Acme Health (cust-1)</option>
-                  <option value="cust-2">Bluefin Markets (cust-2)</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-2 block">Search by Name or Account Number</label>
-                <input
-                  type="text"
-                  value={customerSearch}
-                  onChange={(e) => setCustomerSearch(e.target.value)}
-                  placeholder="Enter customer name or account number..."
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                />
-              </div>
-            </div>
-          </Card>
-
           <Card title="My Services - Health Status">
             <div className="space-y-3">
               {approvedAddOns.filter(a => a.healthCheck?.enabled).map(addon => {
-                // Filter enrollments based on customer selection and search
-                const filteredEnrollments = addon.enrollments.filter(enrollment => {
-                  const matchesCustomer = selectedCustomer === "all" || enrollment.customerId === selectedCustomer;
-                  const matchesSearch = !customerSearch ||
-                    enrollment.customerName.toLowerCase().includes(customerSearch.toLowerCase()) ||
-                    enrollment.customerId.toLowerCase().includes(customerSearch.toLowerCase());
-                  return matchesCustomer && matchesSearch;
-                });
-
-                if (filteredEnrollments.length === 0) return null;
+                // Show all enrollments for the logged-in user
+                const filteredEnrollments = addon.enrollments;
 
                 return (
                 <div key={addon.id} className="border rounded-lg p-4 bg-white">
@@ -857,12 +821,28 @@ export default function App() {
     );
   }
 
-  // Fleet Dashboard view
+  // Fleet Dashboard view - operations view across all services and customers
   if (showFleetDashboard) {
     // Filter services based on selection - include ALL approved services
-    const filteredServices = fleetServiceFilter === "all"
+    let filteredServices = fleetServiceFilter === "all"
       ? approvedAddOns
       : approvedAddOns.filter(a => a.id === fleetServiceFilter);
+
+    // Filter services by customer if customer filter or search is active
+    if (selectedCustomer !== "all" || customerSearch) {
+      filteredServices = filteredServices.map(service => {
+        const filteredEnrollments = service.enrollments.filter(enrollment => {
+          const matchesCustomer = selectedCustomer === "all" || enrollment.customerId === selectedCustomer;
+          const matchesSearch = !customerSearch ||
+            enrollment.customerName.toLowerCase().includes(customerSearch.toLowerCase()) ||
+            enrollment.customerId.toLowerCase().includes(customerSearch.toLowerCase());
+          return matchesCustomer && matchesSearch;
+        });
+
+        // Only include services that have enrollments matching the customer filter
+        return filteredEnrollments.length > 0 ? { ...service, enrollments: filteredEnrollments } : null;
+      }).filter(service => service !== null);
+    }
 
     const totalEnrollments = filteredServices.reduce((sum, a) => sum + a.enrollments.length, 0);
     const healthyCount = filteredServices.reduce((sum, a) =>
@@ -918,7 +898,7 @@ export default function App() {
                         <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Health Monitor
+                        My Services
                       </button>
                       <button
                         onClick={() => {
@@ -992,7 +972,7 @@ export default function App() {
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          Health Monitor (Customer)
+                          My Services (Customer)
                         </button>
                         <button className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Documentation</button>
                         <hr className="my-1" />
@@ -1007,19 +987,45 @@ export default function App() {
         </header>
 
         <main className="px-6 py-6 max-w-7xl mx-auto">
-          {/* Service Filter */}
+          {/* Filters */}
           <div className="bg-white rounded-lg border p-4 mb-6">
-            <label className="text-sm font-medium text-gray-700 mb-2 block">Filter by Service</label>
-            <select
-              value={fleetServiceFilter}
-              onChange={(e) => setFleetServiceFilter(e.target.value)}
-              className="w-full sm:w-64 rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
-            >
-              <option value="all">All Services</option>
-              {approvedAddOns.map(addon => (
-                <option key={addon.id} value={addon.id}>{addon.name}</option>
-              ))}
-            </select>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Filter by Service</label>
+                <select
+                  value={fleetServiceFilter}
+                  onChange={(e) => setFleetServiceFilter(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value="all">All Services</option>
+                  {approvedAddOns.map(addon => (
+                    <option key={addon.id} value={addon.id}>{addon.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Filter by Customer</label>
+                <select
+                  value={selectedCustomer}
+                  onChange={(e) => setSelectedCustomer(e.target.value)}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                >
+                  <option value="all">All Customers</option>
+                  <option value="cust-1">Acme Health (cust-1)</option>
+                  <option value="cust-2">Bluefin Markets (cust-2)</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-2 block">Search Customer</label>
+                <input
+                  type="text"
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  placeholder="Account # or customer name..."
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500"
+                />
+              </div>
+            </div>
           </div>
 
           {/* KPI Cards */}
@@ -1045,6 +1051,55 @@ export default function App() {
               <div className="text-xs text-gray-500 mt-1">Billing paused</div>
             </div>
           </div>
+
+          {/* Health Check Failures Over Time */}
+          <Card title="Health Check Failures Over Time">
+            <div className="p-4">
+              <div className="text-xs text-gray-600 mb-4">Last 30 days • Failed health checks per day</div>
+              <div className="flex items-end justify-between h-48 gap-1 border-b border-gray-300">
+                {/* Mock data: showing last 30 days with varying failure counts */}
+                {[2, 1, 3, 0, 1, 2, 4, 1, 0, 1, 2, 1, 3, 5, 2, 1, 0, 2, 1, 3, 2, 1, 0, 1, 4, 2, 1, 0, 2, 1].map((failures, idx) => {
+                  const maxFailures = 5;
+                  const heightPercent = (failures / maxFailures) * 100;
+                  const isAnomaly = failures >= 4;
+
+                  return (
+                    <div key={idx} className="flex-1 flex flex-col items-center justify-end group relative h-full">
+                      <div
+                        className={`w-full rounded-t transition-all ${
+                          isAnomaly ? 'bg-red-500' : failures > 0 ? 'bg-orange-400' : 'bg-green-400'
+                        } hover:opacity-80 min-h-[8px]`}
+                        style={{ height: failures === 0 ? '8px' : `${heightPercent}%` }}
+                      ></div>
+                      {/* Tooltip on hover */}
+                      <div className="absolute bottom-full mb-2 hidden group-hover:block bg-gray-900 text-white text-xs rounded py-1 px-2 whitespace-nowrap z-10">
+                        Day -{30-idx}: {failures} {failures === 1 ? 'failure' : 'failures'}
+                        {isAnomaly && <div className="text-red-300">⚠️ Anomaly</div>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex justify-between text-xs text-gray-500 mt-2">
+                <span>30 days ago</span>
+                <span>Today</span>
+              </div>
+              <div className="flex items-center gap-4 mt-4 text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-green-400 rounded"></div>
+                  <span className="text-gray-600">No failures</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-orange-400 rounded"></div>
+                  <span className="text-gray-600">1-3 failures</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 bg-red-500 rounded"></div>
+                  <span className="text-gray-600">4+ failures (Anomaly)</span>
+                </div>
+              </div>
+            </div>
+          </Card>
 
           {/* Service Breakdown */}
           <Card title="Service Health Breakdown">
@@ -1180,7 +1235,7 @@ export default function App() {
                         <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Health Monitor
+                        My Services
                       </button>
                       <button
                         onClick={() => {
@@ -1254,7 +1309,7 @@ export default function App() {
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                           </svg>
-                          Health Monitor (Customer)
+                          My Services (Customer)
                         </button>
                         <button
                           onClick={() => {
@@ -1369,7 +1424,7 @@ export default function App() {
                         <svg className="w-4 h-4 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Health Monitor
+                        My Services
                       </button>
                       <button
                         onClick={() => {
@@ -1431,7 +1486,7 @@ export default function App() {
                         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        Health Monitor (Customer)
+                        My Services (Customer)
                       </button>
                       <button
                         onClick={() => {
